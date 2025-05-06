@@ -249,7 +249,29 @@ Output: Core tensor G, factor matrices U_1 ... U_d
 </section>
 <section id="numerical-experiments" class="level3">
 <h3 class="anchored" data-anchor-id="numerical-experiments">Numerical Experiments</h3>
-<p>Here, we present basic experiments demonstrating the convergence behavior of HOOI and HOSVD.</p>
+<p>Here, we present basic experiments demonstrating the convergence behavior of HOOI and HOSVD. We run experiments on the EEM tensor, just as in the CP section. We run HOOI for 5 iterations with three different multiranks: <span class="math inline">\((9, 100, 10), (9, 50, 10), (4, 50, 5)\)</span>. The factor matrices are initialized using HOSVD. At each iteration, the relative error of the decomposition is computed using the previously given expression for computing the error of a Tucker Decomposition.</p>
+<div id="fig-hooi" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-hooi-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="tucker_results/hooi.png" class="img-fluid figure-img" style="width:50.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-hooi-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Tucker Decomposition accuracy on EEM tensor
+</figcaption>
+</figure>
+</div>
+<p><a href="#fig-hooi" class="quarto-xref">Figure&nbsp;1</a> shows the relative error of HOOI at each iteration for the three multiranks considered. Note that the error reported at iteration 0 corresponds to the error produced by using the factor matrices given by HOSVD, without running HOOI. Overall, HOOI is more accurate than HOSVD for all multiranks, as evidenced by the decreasing relative error. Additionally, HOOI converges quickly, with the relative error flattening out after only a single iteration of HOOI. The errors given by the multiranks <span class="math inline">\((9, 100, 10)\)</span> and <span class="math inline">\((9, 50, 10)\)</span> are close, whereas the error given by the other multirank <span class="math inline">\((4, 50, 5)\)</span> is much larger than the other two relative errors. This indicates that there is less of a low-rank structure in the mode 1 and 3 unfoldings, whereas there is more redundancy in the mode 2 unfolding.</p>
+<div id="fig-compression" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-compression-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="tucker_results/compression.png" class="img-fluid figure-img" style="width:50.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-compression-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Compression achieved by Tucker Decomposition of EEM Tensor
+</figcaption>
+</figure>
+</div>
+<p><a href="#fig-compression" class="quarto-xref">Figure&nbsp;2</a> shows the compression rate achieved by the Tucker Decomposition with each of the three multiranks. Overall, the compression rates range from around 65% to 85%. Finally, the multirank that seems to achieve the best balance between compression and accuracy is <span class="math inline">\((9, 50, 10)\)</span>.</p>
 </section>
 <section id="references" class="level3">
 <h3 class="anchored" data-anchor-id="references">References</h3>
