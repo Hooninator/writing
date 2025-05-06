@@ -21,7 +21,27 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="notation_files/libs/clipboard/clipboard.min.js"></script>
@@ -163,6 +183,84 @@ A \odot B = \begin{bmatrix} A_{:1}B_{:1} &amp; A_{:2}B_{2:} &amp; \dots &amp; A_
 \]</span> This operation can be written in two ways: in terms of normal tensors and in terms of matricized tensors <span class="math display">\[
 \mathcal{Y} = \mathcal{X} \times_k U \iff \mathbf{Y}_k = U\mathbf{X}_k
 \]</span></p>
+</section>
+</section>
+<section id="tucker-decomposition" class="level2">
+<h2 class="anchored" data-anchor-id="tucker-decomposition">Tucker Decomposition</h2>
+<p>The Tucker Decomposition is a generalization of the notion of a low-rank approximation to tensors. Given a target rank <span class="math inline">\(r\)</span>, the low-rank approximation problem for a matrix <span class="math inline">\(A \in \mathbb{R}^{m \times n}\)</span> can be formulated as <span class="math display">\[
+\min_{X \in \mathbb{R}^{m \times r}, Y \in \mathbb{R}^{n \times r}} \|A - XY^T\|^2_F, \text{rank}(X) = r, \text{rank}(Y) = r
+\]</span> and it is solved via the truncated SVD. The Tucker Decomposition generalizes this idea by decomposing a tensor <span class="math inline">\(\mathcal{X}\)</span> into a smaller <em>core tensor</em>, usually denoted <span class="math inline">\(\mathcal{G} \in \mathbb{R}^{r_1 \times \dots \times r_d}\)</span>, and a set of <span class="math inline">\(d\)</span> factor matrices <span class="math inline">\(U_1 \dots U_d\)</span>, where <span class="math inline">\(U_i \in \mathbb{R}^{n_i \times r_i}\)</span>, and the columns of each factor matrix are orthonormal. (<span class="math inline">\(r_1 \dots r_d\)</span>) is referred to as the the <em>multirank</em> of the Tucker decomposition. Formally, the Tucker Decomposition is given by <span class="math display">\[
+\mathcal{X} = \mathcal{G} \times_1 U_1 \times_2 \dots \times_d U_d
+\]</span> The main benefit of the Tucker Decomposition is that it allows a given tensor <span class="math inline">\(\mathcal{X}\)</span> to be stored with a reduced memory footprint, since the core tensor and factor matrices are typically much smaller than the original tensor.</p>
+<p>Although it is possible to write down an <em>exact</em> Tucker decomposition for an arbitrary tensor, this requires an appropriate pre-facto choice of multirank, which is rarely feasible. In practical applications of Tucker, it is up to the user to specify the multirank of the decomposition, and the problem then becomes finding the optimal Tucker decomposition with the specified multirank across all such possible decompositions. This can be expressed as the following minimization problem <span class="math display">\[
+\min_{\mathcal{G} \in \mathbb{R}^{r_1 \times \dots \times r_d}, U_1 \in \mathbb{R}^{n_1 \times r_1} \dots U_d \in \mathbb{R}^{n_d \times r_d}} \| \mathcal{X} - \mathcal{G} \times_1 U_1 \times_2 \dots \times_d U_d\|_F^2
+\]</span> The choice of multirank induces a tradeoff between compression and decomposition accuracy; smaller multiranks mean more compression, whereas larger multiranks mean more accurate decompositions. The compression ratio of a Tucker Decomposition with multirank <span class="math inline">\((r_1 \dots r_d)\)</span> is given by <span class="math display">\[
+1 - \frac{\prod_{i=1}^dr_i}{\prod_{i=1}^dn_i}
+\]</span> and the error is given by <span class="math display">\[
+\frac{\|\mathcal{X} - \mathcal{G} \times_1 U_1 \dots \times_d U_d\|_F^2}{\|\mathcal{X}\|_F^2}
+\]</span></p>
+<p>There are two main algorithms for computing the Tucker decomposition given a particular multirank: <strong>Higher-Order Singular Value Decomposition (HOSVD)</strong> and <strong>Higher-Order Orthogonal Iteration (HOOI)</strong>. We will cover both in the following sections.</p>
+<section id="higher-order-singular-value-decomposition-hosvd" class="level3">
+<h3 class="anchored" data-anchor-id="higher-order-singular-value-decomposition-hosvd">Higher-Order Singular Value Decomposition (HOSVD)</h3>
+<p>HOSVD was the first method proposed for computing the Tucker Decomposition by Tucker himself in his original paper <span class="citation" data-cites="tucker1966">(<a href="#ref-tucker1966" role="doc-biblioref">Tucker 1966</a>)</span> HOSVD sets the factor matrices <span class="math inline">\(U_1 \dots U_d\)</span> by computing a low-rank approximation of each mode-<span class="math inline">\(k\)</span> unfolding of <span class="math inline">\(\mathcal{X}\)</span> via a truncated SVD. Then, the core tensor is computed using <span class="math display">\[
+\mathcal{G} = \mathcal{X} \times_1 U_1^T \dots \times_d U_d^T
+\]</span> which is valid because the factor matrices are chosen to have orthonormal columns. Pseudocode depicting the approach is given below.</p>
+<pre><code>Algorithm: HOSVD 
+Input: Tensor X, multirank (r_1 ... r_d)
+Output: Core tensor G, factor matrices U_1 ... U_d
+1. For k in 1 to d do 
+2.     U,Sigma,V = SVD(X_k)
+3.     U_k = U[:, 1:r_k]
+4. G = X x U_1^T ... x U_d^T 
+5. return G, U_1, ..., U_d</code></pre>
+<p>Intuitively, the reason HOSVD works is because the columns of each factor matrix are optimal low-rank approximations of each unfolding, and the original tensor is reconstructed using a linear combination of these columns. HOSVD is quasi-optimal; given a multirank <span class="math inline">\((r_1 \dots r_d)\)</span>, it gives a Tucker Decomposition that is within a factor of <span class="math inline">\(\sqrt{d}\)</span> of the optimal Tucker Decomposition with this multirank.</p>
+</section>
+<section id="higher-order-orthogonal-iteration-hooi" class="level3">
+<h3 class="anchored" data-anchor-id="higher-order-orthogonal-iteration-hooi">Higher-Order Orthogonal Iteration (HOOI)</h3>
+<p>HOOI is an iterative algorithm that uses an alternating least-squares (ALS) approach to optimize the factor matrices one at a time. Letting all but the <span class="math inline">\(k\)</span>th factor matrix be fixed, we can compute the <span class="math inline">\(k\)</span>th factor matrix by solving the following least squares problem <span class="math display">\[
+\min_{U_k \in \mathbb{R}^{n_k \times r_k}} \|(U_d \otimes \dots U_{k+1} \otimes U_{k-1} \otimes \dots \otimes U_1)\mathbf{G}_k^TU_k^T - \mathbf{X}_k^T\|^2_F
+\]</span> which is equivalent to <span class="math display">\[
+\min_{U_k \in \mathbb{R}^{n_k \times r_k}} \|\mathcal{G} \times_1 U_1 \dots \times_d U_d - \mathcal{X} \|^2_F
+\]</span> We give a more formal argument for the efficacy of HOOI below, which is largely a sketch of the argument found in Chapter 6 of <span class="citation" data-cites="ballard2025tensor">(<a href="#ref-ballard2025tensor" role="doc-biblioref">Ballard and Kolda 2025</a>)</span></p>
+<p>Let <span class="math inline">\(\mathcal{T} = \mathcal{G} \times_1 U_1 \dots \times_d U_d\)</span>. By Proposition 6.1 in <span class="citation" data-cites="ballard2025tensor">(<a href="#ref-ballard2025tensor" role="doc-biblioref">Ballard and Kolda 2025</a>)</span>, the Tucker Decomposition minimization problem formulation can be written as <span class="math display">\[
+\min_{\mathcal{T}}\|\mathcal{T} - \mathcal{X}\|_F^2 = \|\mathcal{X}\|_F^2 - \|\mathcal{X} \times_1 U_1^T \dots \times_d U_d^T\|_F^2
+\]</span> Since <span class="math inline">\(\mathcal{X}\)</span> is fixed, the above problem is equivalent to the following maximization problem <span class="math display">\[
+\max_{U_1 \in \mathbb{R}^{n_1 \times r_1} \dots U_d \in \mathbb{R}^{n_d \times r_d}}\|\mathcal{X}\times_1 U_1^T \dots \times_d U_d^T\|_F^2
+\]</span></p>
+<p>Solving this problem for all <span class="math inline">\(d\)</span> factor matrices simultaneously is quite difficult, but solving it for a <em>single</em> factor matrix at a time is feasible. Therefore, we define the following simpler maximization problem, assuming all but the <span class="math inline">\(k\)</span>th factor matrix is given <span class="math display">\[
+\max_{U_k \in \mathbb{R}^{n_k \times r_k}}\|\mathcal{X}\times_1 U_1^T \dots \times_d U_d^T\|_F^2
+\]</span> This is equivalent to <span class="math display">\[
+\max_{U_k \in \mathbb{R}^{n_k \times r_k}}\|U_k^T\mathbf{X}_k(U_d \otimes \dots U_{k+1} \otimes U_{k-1} \otimes \dots \otimes U_1)\|_F^2  = \max_{U_k \in \mathbb{R}^{n_k \times r_k}}\|U_k^TY\|_F^2
+\]</span> This problem is solved by setting <span class="math inline">\(U_k\)</span> to be the <span class="math inline">\(r_k\)</span> leading left singular vectors of <span class="math inline">\(Y\)</span>. This yields the HOOI algorithm shown in the pseudocode below, where the <span class="math inline">\(k\)</span>th factor matrix is set to be the leading left singular vectors of the SVD of the mode-<span class="math inline">\(k\)</span> unfolding of the input tensor <span class="math inline">\(\mathcal{X}\)</span> multiplied with the Kronecker product chain of all but the <span class="math inline">\(k\)</span>th factor matrix. A single iteration of HOOI updates all <span class="math inline">\(d\)</span> factor matrices. The convergence criteria for HOOI is usually based on the error of the Tucker Decomposition given by the factor matrices and core tensor at a given iteration.</p>
+<pre><code>Algorithm: HOOI 
+Input: Tensor X, multirank (r_1 ... r_d)
+Output: Core tensor G, factor matrices U_1 ... U_d
+1. U_1 ... U_d = HOSVD(X, r_1 ... r_d) # Initialize factor matrices 
+2. While not converged do # Main loop
+3.     For k in 1 to d do 
+4.         Y = X x U_1^T ... U_k-1 x U_k+1 x ... x U_d # Multiply tensor with factors
+5.         U_k = LLSV(Y_k, r_k) # Leading left singular vectors of Y unfolding
+6.     end
+7.     check convergence based on Tucker error 
+8. end 
+9. G = X x U_1 ... x U_d 
+10.return G, U_1, ..., U_d</code></pre>
+<p>HOOI requires an initial guess for the factor matrices prior to beginning the main iterations of the algorithm. Theoeretically, one can choose to initialize the factor matrices in any arbitrary manner, as long as they have orthogonal columns. However, in practice, a good strategy is to use HOSVD to obtain an initial guess for the factor matrices. As will be shown in the numerical experiments, HOOI typically converges quite quickly, and achieves errors smaller than HOSVD.</p>
+</section>
+<section id="numerical-experiments" class="level3">
+<h3 class="anchored" data-anchor-id="numerical-experiments">Numerical Experiments</h3>
+<p>Here, we present basic experiments demonstrating the convergence behavior of HOOI and HOSVD.</p>
+</section>
+<section id="references" class="level3">
+<h3 class="anchored" data-anchor-id="references">References</h3>
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-ballard2025tensor" class="csl-entry" role="listitem">
+Ballard, Grey, and Tamara G. Kolda. 2025. <em>Tensor Decompositions for Data Science</em>. Cambridge University Press. <a href="https://www.cambridge.org/core/books/tensor-decompositions-for-data-science/640814D308696CD61CB9112EA57B2911">https://www.cambridge.org/core/books/tensor-decompositions-for-data-science/640814D308696CD61CB9112EA57B2911</a>.
+</div>
+<div id="ref-tucker1966" class="csl-entry" role="listitem">
+Tucker, Ledyard R. 1966. <span>“Some Mathematical Notes on Three-Mode Factor Analysis.”</span> <em>Psychometrika</em> 31 (3): 279–311.
+</div>
+</div>
 </section>
 </section>
 
